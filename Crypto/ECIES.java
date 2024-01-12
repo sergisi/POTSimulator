@@ -53,7 +53,7 @@ public class ECIES {
 		String key = this.KDF(sKey);
 
 
-		byte[] c = this.AES.Encrypt(message.toString(), key);
+		byte[] c = this.AES.encrypt(message.toString(), key);
 
 		ECIES.Result result = new ECIES.Result(c, R);
 
@@ -69,7 +69,7 @@ public class ECIES {
 		
 		String key = KDF(sKey);
 		
-		String message = this.AES.Decrypt(encrypted.EncryptedMessage, key); 
+		String message = this.AES.decrypt(encrypted.EncryptedMessage, key);
 		BigInteger result = new BigInteger(message);
 		
 		return(result);

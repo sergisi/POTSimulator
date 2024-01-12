@@ -8,104 +8,118 @@ import java.util.Date;
 
 public class POTSimulator {
 
-	private static String SEPARADOR = "===========================================================";
+    private static final String SEPARADOR = "===========================================================";
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 
-		try {
+        try {
 
-			ExecuteSimulation();
+            ExecuteSimulation();
 
-		} catch (Exception ex) {
-			System.out.println("Exception: " + ex.getMessage());
-			System.out.println("Exception: " + ex.getLocalizedMessage());
-		}
-	}
+        } catch (Exception ex) {
+            System.out.println("Exception: " + ex.getMessage());
+            System.out.println("Exception: " + ex.getLocalizedMessage());
+        }
+    }
 
-	private static void ExecuteSimulation() throws Exception {
-		Date iniciSimulacio = new Date();
+    private static void ExecuteSimulation() throws Exception {
+        Date initDate = new Date();
 
-		SimulatorSettings settings = new SimulatorSettings();
+        SimulatorSettings settings = new SimulatorSettings();
 
-		String mainTitle = "#################################### POT Simulator v.1.00 ####################################";
-		System.out.println(mainTitle);
-		System.out.println("");
-		System.out.println("Settings:");
-		System.out.println(SEPARADOR);
-		System.out.println(settings.print());
+        String mainTitle = "#################################### POT Simulator v.1.00 ####################################";
+        System.out.println(mainTitle);
+        System.out.println();
+        System.out.println("Settings:");
+        System.out.println(SEPARADOR);
+        System.out.println(settings.print());
 
-		int aux = Runtime.getRuntime().availableProcessors();
-		System.out.println("*** Parallelism: "+aux+" ***");
-		
-		
-		System.out.println("");
-		System.out.println("");
-		System.out.println(SEPARADOR);
-		System.out.println("--- PRICED OBLIVIOUS TRANSFER");
-		System.out.println(SEPARADOR);
-
-		POTSimulation(settings, 16, 10, false);
-		POTSimulation(settings, 16, 10, true);
-		POTSimulation(settings, 16, 50, false);
-		POTSimulation(settings, 16, 50, true);
-		POTSimulation(settings, 16, 100, false);
-		POTSimulation(settings, 16, 100, true);
-
-		System.out.println("");
-		System.out.println("");
-		System.out.println("Total simulator: " + HelperTime.GetFormattedInterval(iniciSimulacio));
-		System.out.println(HelperString.Fill("", mainTitle.length(), '#'));
-	}
+        int aux = Runtime.getRuntime().availableProcessors();
+        System.out.println("*** Parallelism: " + aux + " ***");
 
 
-	private static void POTSimulation(SimulatorSettings settings, int M, int items, boolean executeOT) throws Exception {
+        System.out.println();
+        System.out.println();
+        System.out.println(SEPARADOR);
+        System.out.println("--- PRICED OBLIVIOUS TRANSFER");
+        System.out.println(SEPARADOR);
 
-		RSA rsa = new RSA();
-		
-		settings.MAX_TICKETS = items;
-		
-		ManagerPOT manager = new ManagerPOT(settings, rsa);
+        POTSimulation(settings, 16, 10);
+        POTSimulation(settings, 16, 50);
+        POTSimulation(settings, 16, 100);
 
-		Item.M = M;
-		Item.MAX_PRICE = (int) (Math.pow(2, M) - 1);
-
-		System.out.println("");
-		System.out.println(HelperString.Fill("", SEPARADOR.length(), '-'));
-		String title = "--- SIMULATION [m=" + M + " - Items="+settings.MAX_TICKETS + " - Protocol OT=" + executeOT +  "]";
-		System.out.println(title); 
-		System.out.println(HelperString.Fill("", SEPARADOR.length(), '-'));
-		System.out.println("");
-
-		manager.initialize();
-
-		Date ini = new Date();
-
-		int simulations = settings.MAX_POT_SIMULATIONS/4;
-		System.out.println("-> Simulating " + simulations  + " executions POT serial");
-
-		ini = new Date();
-		manager.simulateSerial(simulations, executeOT);
-
-		System.out.println("");
-		double tempsExecucioSerial = (double) ((double) HelperTime.GetMillisecondsSeconds(ini)
-				/ (double)simulations);
-		System.out.println("Avg execution: " + tempsExecucioSerial + " ms.");
-		System.out.println("Avg/bit: " + (double)(tempsExecucioSerial/(double)M) + " ms.");
+        System.out.println();
+        System.out.println();
+        System.out.println("Total simulator: " + HelperTime.GetFormattedInterval(initDate));
+        System.out.println(HelperString.Fill("", mainTitle.length(), '#'));
+    }
 
 
-		System.out.println("");
-		System.out.println("");
+    private static void POTSimulation(SimulatorSettings settings, int M, int items) throws Exception {
 
-		simulations = settings.MAX_POT_SIMULATIONS;
-		System.out.println("-> Simulating " + settings.MAX_POT_SIMULATIONS + " executions POT async");
-		ini = new Date();
-		manager.simulateAsync(simulations,  executeOT);
+        ManagerPOT manager = getManagerPOT(settings, M, items);
 
-		
-		double tempsExecucioAsync = (double) ((double) HelperTime.GetMillisecondsSeconds(ini)
-				/ (double) simulations);
-		System.out.println("Avg execution: " + tempsExecucioAsync + " ms.");
-		System.out.println("Avg/bit: " + (double)(tempsExecucioAsync/(double)M) + " ms.");
-		
-	}
+        printHeaders(settings, M);
+
+        manager.initialize();
+
+        serialSimulation(settings, M, manager);
+        asyncSimulation(settings, M, manager);
+
+    }
+
+    private static void asyncSimulation(SimulatorSettings settings, double M, ManagerPOT manager) {
+        Date ini;
+        int simulations;
+
+        simulations = settings.MAX_POT_SIMULATIONS;
+        System.out.println("-> Simulating " + settings.MAX_POT_SIMULATIONS + " executions POT async");
+        ini = new Date();
+        manager.simulateAsync(simulations);
+
+
+        double timeAsync = (double) HelperTime.GetMillisecondsSeconds(ini)
+                / (double) simulations;
+        System.out.println("Avg execution: " + timeAsync + " ms.");
+        System.out.println("Avg/bit: " + (timeAsync / M) + " ms.");
+    }
+
+    private static void serialSimulation(SimulatorSettings settings, double M, ManagerPOT manager) throws Exception {
+        int simulations = settings.MAX_POT_SIMULATIONS / 4;
+        System.out.println("-> Simulating " + simulations + " executions POT serial");
+
+        var ini = new Date();
+        manager.simulateSerial(simulations);
+
+        System.out.println();
+        double timeSerial = (double) HelperTime.GetMillisecondsSeconds(ini)
+                / (double) simulations;
+        System.out.println("Avg execution: " + timeSerial + " ms.");
+        System.out.println("Avg/bit: " + (timeSerial / M) + " ms.");
+
+
+        System.out.println();
+        System.out.println();
+    }
+
+    private static void printHeaders(SimulatorSettings settings, int M) {
+        System.out.println();
+        System.out.println(HelperString.Fill("", SEPARADOR.length(), '-'));
+        String title = "--- SIMULATION [m=" + M + " - Items=" + settings.MAX_TICKETS;
+        System.out.println(title);
+        System.out.println(HelperString.Fill("", SEPARADOR.length(), '-'));
+        System.out.println();
+    }
+
+    private static ManagerPOT getManagerPOT(SimulatorSettings settings, int M, int items) {
+        RSA rsa = new RSA();
+
+        settings.MAX_TICKETS = items;
+
+        ManagerPOT manager = new ManagerPOT(settings, rsa);
+
+        Item.M = M;
+        Item.MAX_PRICE = (int) (Math.pow(2, M) - 1);
+        return manager;
+    }
 }

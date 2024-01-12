@@ -43,7 +43,7 @@ public class Item extends POTEntity {
 		this.price = price;
 		this.key = key;
 
-		this.cypherValue = this.aes.Encrypt(value.toString(), key.toString());
+		this.cypherValue = this.aes.encrypt(value.toString(), key.toString());
 
 		this.priceInBits = Integer.toBinaryString(this.price);
 		if (priceInBits.length() < M)
@@ -61,13 +61,13 @@ public class Item extends POTEntity {
 		StringBuilder result = new StringBuilder();
 		result.append("Item");
 		result.append(System.getProperty("line.separator"));
-		result.append("  ·Value: " + this.value);
+		result.append("  ï¿½Value: " + this.value);
 		result.append(System.getProperty("line.separator"));
-		result.append("  ·Price: " + this.price);
+		result.append("  ï¿½Price: " + this.price);
 		result.append(System.getProperty("line.separator"));
-		result.append("  ·Price in bits: " + this.priceInBits);
+		result.append("  ï¿½Price in bits: " + this.priceInBits);
 		result.append(System.getProperty("line.separator"));
-		result.append("  ·Key: " + this.key);
+		result.append("  ï¿½Key: " + this.key);
 		result.append(System.getProperty("line.separator"));
 
 		return (result.toString());
