@@ -26,10 +26,8 @@ public class Server extends POTEntity {
 		
 		if(!this.settings.EC.getEC().isOnCurve(eCoin.Q_r))
 			throw new Exception("The Q_r not is a point of EC Curve!");
-				
-		ECIES.Result result = ecies.cypher(dataToBuy, eCoin.Q_r);
 
-		return (result);
+        return ecies.cypher(dataToBuy, eCoin.Q_r);
 	}
 
 }

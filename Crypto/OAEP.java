@@ -181,11 +181,11 @@ public class OAEP {
 	private String GenerateRandomBits(int bits, String seed) {
 		String result = "";
 
-		String newSeed = HelperBit.ToBits(this.Hash.ComputeHash(seed).toString());
+		String newSeed = HelperBit.ToBits(this.Hash.computeHash(seed).toString());
 
 		result = newSeed;
 		while (result.length() < bits) {
-			newSeed = HelperBit.ToBits(this.Hash.ComputeHash(newSeed).toString());
+			newSeed = HelperBit.ToBits(this.Hash.computeHash(newSeed).toString());
 			result += newSeed;
 		}
 

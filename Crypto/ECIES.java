@@ -77,7 +77,7 @@ public class ECIES {
 
 	private String KDF(String key)
 	{
-		String result = this.Hash.ComputeHash(key).toString();
+		String result = this.Hash.computeHash(key).toString();
 		
 		return result;
 	}

@@ -1,3 +1,4 @@
+import Crypto.DSA;
 import Crypto.RSA;
 import Helpers.HelperString;
 import Helpers.HelperTime;
@@ -6,7 +7,7 @@ import POT.Entities.SimulatorSettings;
 
 import java.util.Date;
 
-public class POTSimulator {
+public class POTSimulatorImproved {
 
     private static final String SEPARADOR = "===========================================================";
 
@@ -18,7 +19,7 @@ public class POTSimulator {
 
         } catch (Exception ex) {
             System.out.println("Exception: " + ex.getMessage());
-            System.out.println("Exception: " + ex.getLocalizedMessage());
+            ex.printStackTrace();
         }
     }
 
@@ -58,18 +59,20 @@ public class POTSimulator {
 
     private static void POTSimulation(SimulatorSettings settings, int M, int items) throws Exception {
 
-        ManagerPOT manager = getManagerPOT(settings, M, items);
+        ManagerPOTImproved manager = getManagerPOT(settings, M, items);
 
         printHeaders(settings, M);
 
-        Date ini = new Date();
+        var ini = new Date();
         manager.initialize();
         var initCost = new Date().getTime() - ini.getTime();
         System.out.println("Init time: " + initCost);
         serialSimulation(settings, M, manager);
+        // asyncSimulation(settings, M, manager);
+
     }
 
-    private static void asyncSimulation(SimulatorSettings settings, double M, ManagerPOT manager) {
+    private static void asyncSimulation(SimulatorSettings settings, double M, ManagerPOTImproved manager) {
         Date ini;
         int simulations;
 
@@ -85,15 +88,13 @@ public class POTSimulator {
         System.out.println("Avg/bit: " + (timeAsync / M) + " ms.");
     }
 
-    private static void serialSimulation(SimulatorSettings settings, double M, ManagerPOT manager) throws Exception {
+    private static void serialSimulation(SimulatorSettings settings, double M, ManagerPOTImproved manager) throws Exception {
         int simulations = settings.MAX_POT_SIMULATIONS;
         System.out.println("-> Simulating " + simulations + " executions POT serial");
-
 
         var timeSerial = manager.simulateSerial(simulations);
         System.out.println("Avg execution: " + timeSerial + " ms.");
         System.out.println("Avg/bit: " + (timeSerial / M) + " ms.");
-
 
         System.out.println();
         System.out.println();
@@ -108,12 +109,13 @@ public class POTSimulator {
         System.out.println();
     }
 
-    private static ManagerPOT getManagerPOT(SimulatorSettings settings, int M, int items) {
+    private static ManagerPOTImproved getManagerPOT(SimulatorSettings settings, int M, int items) {
         RSA rsa = new RSA();
+        DSA dsa = new DSA();
 
         settings.MAX_TICKETS = items;
 
-        ManagerPOT manager = new ManagerPOT(settings, rsa);
+        ManagerPOTImproved manager = new ManagerPOTImproved(settings, rsa, dsa);
 
         Item.M = M;
         Item.MAX_PRICE = (int) (Math.pow(2, M) - 1);

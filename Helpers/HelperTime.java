@@ -8,9 +8,7 @@ public final class HelperTime {
 
 		Date now = new Date();
 
-		long result = now.getTime() - start.getTime();
-
-		return (result);
+        return now.getTime() - start.getTime();
 	}
 	
 	

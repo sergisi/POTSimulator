@@ -1,308 +1,192 @@
-
-
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-import Crypto.AES;
-import Crypto.ECIES;
-import Crypto.Hash;
-import Crypto.RSA;
-import Crypto.RandomGenerator;
+import Crypto.*;
 import POT.Entities.ECoin;
 import POT.Entities.Item;
 import POT.Entities.Server;
 import POT.Entities.SimulatorSettings;
 import cat.udl.cig.cryptography.signers.Signature;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 public class ManagerPOT {
-
-
     protected SimulatorSettings settings;
     protected RSA rsa;
     protected ECIES ecies;
-
     protected RandomGenerator randomGenerator;
-
-    protected ECoin valuedECoin, noValuedECoin;
     protected Server server;
-
-    protected Date dateTimestampValuedECoin;
-    protected Date dateTimestampNoValuedECoin;
-    protected Signature signedTimestampValuedEcoin;
-    protected Signature signedTimestampNoValuedEcoin;
-
-
-    public List<Item> items;
+    /**
+     * The server ones for bitKeys and Oblivious Transfer are stored in the class. The client Recomputes them in the
+     * methods.
+     */
+   public List<Item> items;
     public List<ECoin> valuedECoins, noValuedECoins;
 
     public ManagerPOT(SimulatorSettings settings, RSA rsa) {
-
         this.settings = settings;
         this.rsa = rsa;
         this.randomGenerator = new RandomGenerator();
         this.ecies = new ECIES(this.settings.EC);
-
         this.items = new ArrayList<>();
-
         this.valuedECoins = new ArrayList<>();
         this.noValuedECoins = new ArrayList<>();
-
     }
 
     public void initialize() throws Exception {
         this.server = new Server(settings, rsa);
 
-        this.valuedECoin = new ECoin(settings, rsa);
-        this.valuedECoin.initAsValued();
-        this.valuedECoin.S = this.rsa.Sign(this.valuedECoin.M);
-
-        this.noValuedECoin = new ECoin(settings, rsa);
-        this.noValuedECoin.initAsNoValued();
-
-        this.dateTimestampValuedECoin = new Date();
-        this.dateTimestampNoValuedECoin = new Date();
-
-        this.signedTimestampValuedEcoin = this.valuedECoin.signTimestamp(this.dateTimestampValuedECoin);
-        this.signedTimestampNoValuedEcoin = this.noValuedECoin.signTimestamp(this.dateTimestampNoValuedECoin);
-
-
         for (int i = 0; i < this.settings.MAX_TICKETS; i++) {
-
             Item item = new Item(this.settings, this.rsa);
             item.initialize();
-
             this.items.add(item);
         }
 
         for (int i = 0; i < Item.M; i++) {
-
             ECoin valuedECoin = new ECoin(this.settings, this.rsa);
             valuedECoin.initAsValued();
-            valuedECoin.S = this.rsa.Sign(valuedECoin.M);
-
+            valuedECoin.S = this.rsa.sign(valuedECoin.M);
             this.valuedECoins.add(valuedECoin);
         }
 
         for (int i = 0; i < Item.M; i++) {
-
             ECoin noValuedECoin = new ECoin(this.settings, this.rsa);
             noValuedECoin.initAsNoValued();
-
             this.noValuedECoins.add(noValuedECoin);
         }
     }
 
 
-    public void simulateAsync(int simulations) {
-
-        ArrayList<Integer> ids = new ArrayList<>();
-
-        for (int i = 0; i < simulations - 1; i++)
-            ids.add(i);
-
-        ids.parallelStream().forEach((id) -> {
+    public void simulateAsync(int simulations) throws RuntimeException {
+        IntStream.range(0, simulations).parallel().forEach((id) -> {
             try {
-
                 this.simulate();
-
-                // if (id % (this.settings.MAX_POT_SIMULATIONS / 10) == 0)
-                System.out.print(". ");
-
             } catch (Exception e) {
-                System.out.println("System throw an ''unexpected'' exception: " + e);
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
+            System.out.print(". ");
         });
-
         System.out.println(".");
-
     }
 
-    public void simulateSerial(int simulations) throws Exception {
-
+    public long simulateSerial(int simulations) throws Exception {
+        ArrayList<Long> results = new ArrayList<>(simulations);
         for (int i = 0; i < simulations; i++) {
+            var ini = new Date().getTime();
             this.simulate();
-
-            // if (simulations> 10 && i % (simulations / 10) == 0)
+            results.add(new Date().getTime() - ini);
             System.out.print(". ");
         }
+        System.out.println(".");
+        results.sort(Comparator.naturalOrder());
+        if (simulations % 2 == 0) {
+            int i = simulations / 2;
+            return (results.get(i - 1) + results.get(i)) / 2;
+        }
+        int i = simulations / 2;
+        return results.get(i);
 
-        System.out.print(".");
     }
 
-    public void simulate() {
-
-        try {
-
-            List<BigInteger> bitKEYS = this.generateBitKEYS(); // K_0, K_1,..,K_M
-            List<BigInteger> obliviousTransferKeys = this.generateObliviousTransferKeys(bitKEYS);
-
-            int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
-            Item itemToBuy = this.items.get(idxItemToBuy);
-            // BigInteger obliviousTransferKey = obliviousTransferKeys.get(idxItemToBuy);
-
-            BigInteger obliviousTransferKey = BigInteger.ZERO;
-            obliviousTransferKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
-            BigInteger itemValue = this.buyItem(itemToBuy, obliviousTransferKey, bitKEYS);
-            if (!itemValue.equals(itemToBuy.value))
-                throw new Exception("El valor de l'item comprat no correspon a l'original!!!");
-
-        } catch (Exception ex) {
-            System.out.println("Some exception was thrown: " + ex);
-            ex.printStackTrace();
-            StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-            for (StackTraceElement stackTraceElement : stackTraceElements)
-                System.out.println("StackTrace: " + stackTraceElement.toString());
-        }
+    public void simulate() throws Exception {
+        // This has to be changed
+        List<BigInteger> bitKEYS = this.generateBitKEYS();
+        List<BigInteger> obliviousTransferKeys = this.generateObliviousTransferKeys(bitKEYS);
+        int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
+        Item itemToBuy = this.items.get(idxItemToBuy);
+        BigInteger obliviousTransferKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
+        BigInteger itemValue = this.buyItem(itemToBuy, obliviousTransferKey, bitKEYS);
+        if (!itemValue.equals(itemToBuy.value))
+            throw new Exception("The item value is different from the original.");
     }
 
     // Simulem el protocol de Oblivious Transfer que equival a una signatura cega.
-    private BigInteger simulateObliviousTransfer(List<BigInteger> obliviousTransferKeys, int idxItemToBuy)
-            throws Exception {
-
+    private BigInteger simulateObliviousTransfer(List<BigInteger> obliviousTransferKeys, int idxItemToBuy) throws Exception {
         Hash hash = new Hash();
         AES aes = new AES();
-
-        byte[] itemToBuyEncrypted = null;
+        byte[] itemToBuyEncrypted = new byte[0];
         ArrayList<String> keyList = new ArrayList<>();
         BigInteger hashItem;
         String key;
 
+        // TODO @sergisi: have to change this
         // SERVIDOR
         for (int idxItem = 0; idxItem < obliviousTransferKeys.size(); idxItem++) {
-
             BigInteger obliviousTransferKey = obliviousTransferKeys.get(idxItem);
-            hashItem = hash.ComputeHash(String.valueOf(idxItem)).modPow(this.rsa.d, this.rsa.N);
-            key = this.rsa.Sign(hashItem).toString();
+            hashItem = hash.computeHash(String.valueOf(idxItem)).modPow(this.rsa.d, this.rsa.N);
+            key = this.rsa.sign(hashItem).toString();
             keyList.add(key);
 
             byte[] itemEncrypted = aes.encrypt(obliviousTransferKey.toString(), key);
-            if (idxItem == idxItemToBuy)
-                itemToBuyEncrypted = itemEncrypted;
+            if (idxItem == idxItemToBuy) itemToBuyEncrypted = itemEncrypted;
         }
 
         // CLIENT
-        hashItem = hash.ComputeHash(String.valueOf(idxItemToBuy)).modPow(this.rsa.d, this.rsa.N);
+        hashItem = hash.computeHash(String.valueOf(idxItemToBuy)).modPow(this.rsa.d, this.rsa.N);
         BigInteger blindFactor = this.randomGenerator.generateRandom(this.rsa.N);
-        BigInteger blindedMessage = this.rsa.BlindMessage(hashItem, blindFactor);
+        BigInteger blindedMessage = this.rsa.blindMessage(hashItem, blindFactor);
 
         // SERVIDOR -> Signatura
-        BigInteger blindedMessageSigned = this.rsa.Sign(blindedMessage);
+        BigInteger blindedMessageSigned = this.rsa.sign(blindedMessage);
 
         // CLIENT -> Unblind signatura per obtenir la key i desxifrar el contingut.
         key = this.rsa.UnblindSignature(blindedMessageSigned, blindFactor).toString();
-        assert key.equals(keyList.get(idxItemToBuy));
-        BigInteger result = new BigInteger(aes.decrypt(itemToBuyEncrypted, key));
+        if (!key.equals(keyList.get(idxItemToBuy))) {
+            throw new Exception("Key obtained is not the same as key encrypted");
+        }
 
-        return (result);
+        return new BigInteger(aes.decrypt(itemToBuyEncrypted, key));
     }
 
-    private BigInteger buyItem(Item itemToBuy, BigInteger obliviousTransferKey, List<BigInteger> bitKEYS)
-            throws Exception {
-
+    private BigInteger buyItem(Item itemToBuy, BigInteger obliviousTransferKey, List<BigInteger> bitKEYS) throws Exception {
         List<BigInteger> buyedKEYS = new ArrayList<>();
-
-        int idxLastValuedECoin = 0;
-        int idxLastNoValuedECoin = 0;
-
-        for (int b = 0; b < itemToBuy.priceInBits.length(); b++) {
-
+        for (int b = 0; b < Item.M; b++) {
             if (itemToBuy.priceInBits.charAt(b) == '1') {
-                ECoin valuedECoin = this.valuedECoins.get(idxLastValuedECoin);
-
-                BigInteger keyBit = this.spendECoin(valuedECoin, bitKEYS.get(b), true);
+                ECoin valuedECoin = this.valuedECoins.get(b);
+                BigInteger keyBit = this.spendECoin(valuedECoin, bitKEYS.get(b));
                 buyedKEYS.add(keyBit);
-
-                idxLastValuedECoin++;
             } else {
-                ECoin noValuedECoin = this.noValuedECoins.get(idxLastNoValuedECoin);
-
+                ECoin noValuedECoin = this.noValuedECoins.get(b);
                 // Es compra la clau amb una moneda sense valor i per tant no se'n fa res.
-                BigInteger emptyValue = this.spendECoin(noValuedECoin, bitKEYS.get(b), false);
-                buyedKEYS.add(emptyValue);
-
-                idxLastNoValuedECoin++;
+                this.sendServerEcoin(noValuedECoin, bitKEYS.get(b));
             }
         }
-
-        BigInteger itemToBuyKey = this.generateTemporalItemKey(buyedKEYS, obliviousTransferKey, itemToBuy.priceInBits);
-
-        try {
-
-            String decrypedValue = new AES().decrypt(itemToBuy.cypherValue, itemToBuyKey.toString());
-
-            return (new BigInteger(decrypedValue));
-
-        } catch (Exception ex) {
-
-            System.out.println("Price: " + itemToBuy.price);
-
-            System.out.println("Error decrypting value. Key buyed: " + itemToBuyKey.toString() + " - Key item: "
-                    + itemToBuy.key.toString());
-
-            throw ex;
-        }
+        BigInteger itemToBuyKey = this.generateTemporalItemKey(buyedKEYS, obliviousTransferKey);
+        String decryptedValue = new AES().decrypt(itemToBuy.cypherValue, itemToBuyKey.toString());
+        return new BigInteger(decryptedValue);
     }
 
-    private BigInteger spendECoin(ECoin eCoin, BigInteger dataToBuy, boolean isECoinValued) throws Exception {
+    private BigInteger spendECoin(ECoin eCoin, BigInteger dataToBuy) throws Exception {
+        ECIES.Result cypherData = sendServerEcoin(eCoin, dataToBuy);
+        return ecies.decypher(cypherData, eCoin.v_r);
+    }
 
-        BigInteger result = BigInteger.ZERO;
-
+    private ECIES.Result sendServerEcoin(ECoin eCoin, BigInteger dataToBuy) throws Exception {
         Date timestamp = new Date();
-
         Signature signature = eCoin.signTimestamp(timestamp);
-        ECIES.Result cypherData = this.server.spendECoin(eCoin.M_s, eCoin.M_r, eCoin.S, timestamp, signature,
-                dataToBuy);
-
-        if (isECoinValued)
-            result = ecies.decypher(cypherData, eCoin.v_r);
-
-        return (result);
+        return this.server.spendECoin(eCoin.M_s, eCoin.M_r, eCoin.S, timestamp, signature, dataToBuy);
     }
 
     private List<BigInteger> generateObliviousTransferKeys(List<BigInteger> bitKEYS) throws Exception {
-
-        List<BigInteger> result = new ArrayList<>();
-
-        for (int i = 0; i < this.items.size(); i++) {
-
-            Item item = this.items.get(i);
-            BigInteger temporalKey = this.generateTemporalItemKey(bitKEYS, item.key, item.priceInBits);
-
-            result.add(temporalKey);
-        }
-
-        return (result);
+        return this.items.stream().map((item ->
+                generateTemporalItemKey(IntStream.range(0, item.priceInBits.length())
+                        .filter(i -> item.priceInBits.charAt(i) == '1')
+                        .mapToObj(bitKEYS::get)
+                        .collect(Collectors.toList()), item.key))).collect(Collectors.toList());
     }
 
-    public BigInteger generateTemporalItemKey(List<BigInteger> bitKEYS, BigInteger initialKey, String bitKeyArray)
-            throws Exception {
-
-        BigInteger result = BigInteger.ONE;
-        boolean isFirst = true;
-
-        for (int b = 0; b < bitKeyArray.length(); b++) {
-            if (bitKeyArray.charAt(b) == '1') {
-
-                if (isFirst) {
-                    isFirst = false;
-                    result = initialKey.xor(bitKEYS.get(b));
-                } else
-                    result = result.xor(bitKEYS.get(b));
-            }
-        }
-
-        return (result);
+    public BigInteger generateTemporalItemKey(List<BigInteger> bitKEYS, BigInteger initialKey) {
+        var res = bitKEYS.stream().reduce(BigInteger::xor);
+        return res.map(bigInteger -> bigInteger.xor(initialKey)).orElse(initialKey);
     }
 
     private List<BigInteger> generateBitKEYS() {
         List<BigInteger> result = new ArrayList<>();
-
         for (int i = 0; i < Item.M; i++)
             result.add(Item.generateRandomKey());
-
-        return (result);
+        return result;
     }
 }

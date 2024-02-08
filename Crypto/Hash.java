@@ -2,38 +2,12 @@ package Crypto;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class Hash {
 
-	
-	public BigInteger ComputeHash(BigInteger value) throws NoSuchAlgorithmException, UnsupportedEncodingException {
-		BigInteger result = ComputeHash(value.toString());
-
-		return (result);
-	}
-
-	public BigInteger ComputeHash(String value) {
-		BigInteger result = BigInteger.ONE;
-
-		try {
-
-			MessageDigest hash = MessageDigest.getInstance("SHA-224");
-
-			hash.update(value.getBytes("UTF-8"));
-
-			byte[] digest = hash.digest();
-						
-			result = new BigInteger(1, digest);
-
-		} catch (Exception ex) {
-
-		}
-
-		return (result);
-	}
-	
     private static BigInteger hashToInteger(String hash) {
         int inumber;
         String snumber;
@@ -44,5 +18,19 @@ public class Hash {
             ihash = ihash.add(BigInteger.valueOf(inumber)).multiply(BigInteger.valueOf(16));
         }
         return ihash;
+    }
+
+    public BigInteger computeHash(BigInteger value) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        return computeHash(value.toString());
+    }
+
+    public BigInteger computeHash(String value) {
+        try {
+            MessageDigest hash = MessageDigest.getInstance("SHA-224");
+            hash.update(value.getBytes(StandardCharsets.UTF_8));
+            byte[] digest = hash.digest();
+            return new BigInteger(1, digest);
+        } catch (Exception ignored) {}
+        return BigInteger.ONE;
     }
 }
