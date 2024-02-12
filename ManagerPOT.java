@@ -1,8 +1,5 @@
 import Crypto.*;
-import POT.Entities.ECoin;
-import POT.Entities.Item;
-import POT.Entities.Server;
-import POT.Entities.SimulatorSettings;
+import POT.Entities.*;
 import cat.udl.cig.cryptography.signers.Signature;
 
 import java.math.BigInteger;
@@ -14,17 +11,17 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ManagerPOT {
+    /**
+     * The server ones for bitKeys and Oblivious Transfer are stored in the class. The client Recomputes them in the
+     * methods.
+     */
+    public List<Item> items;
+    public List<ECoin> valuedECoins, noValuedECoins;
     protected SimulatorSettings settings;
     protected RSA rsa;
     protected ECIES ecies;
     protected RandomGenerator randomGenerator;
     protected Server server;
-    /**
-     * The server ones for bitKeys and Oblivious Transfer are stored in the class. The client Recomputes them in the
-     * methods.
-     */
-   public List<Item> items;
-    public List<ECoin> valuedECoins, noValuedECoins;
 
     public ManagerPOT(SimulatorSettings settings, RSA rsa) {
         this.settings = settings;
@@ -34,6 +31,17 @@ public class ManagerPOT {
         this.items = new ArrayList<>();
         this.valuedECoins = new ArrayList<>();
         this.noValuedECoins = new ArrayList<>();
+    }
+
+    private static long extractMedian(ArrayList<Long> results) {
+        results.sort(Comparator.naturalOrder());
+        var size = results.size();
+        if (size % 2 == 0) {
+            int i = size / 2;
+            return (results.get(i - 1) + results.get(i)) / 2;
+        }
+        int i = size / 2;
+        return results.get(i);
     }
 
     public void initialize() throws Exception {
@@ -59,7 +67,6 @@ public class ManagerPOT {
         }
     }
 
-
     public void simulateAsync(int simulations) throws RuntimeException {
         IntStream.range(0, simulations).parallel().forEach((id) -> {
             try {
@@ -72,35 +79,34 @@ public class ManagerPOT {
         System.out.println(".");
     }
 
-    public long simulateSerial(int simulations) throws Exception {
+    public SimulationResult simulateSerial(int simulations) throws Exception {
         ArrayList<Long> results = new ArrayList<>(simulations);
+        ArrayList<Long> timeOfOT = new ArrayList<>(simulations);
         for (int i = 0; i < simulations; i++) {
             var ini = new Date().getTime();
-            this.simulate();
+            var time = this.simulate();
             results.add(new Date().getTime() - ini);
+            timeOfOT.add(time);
             System.out.print(". ");
         }
         System.out.println(".");
-        results.sort(Comparator.naturalOrder());
-        if (simulations % 2 == 0) {
-            int i = simulations / 2;
-            return (results.get(i - 1) + results.get(i)) / 2;
-        }
-        int i = simulations / 2;
-        return results.get(i);
+        return new SimulationResult(extractMedian(results), extractMedian(timeOfOT));
 
     }
 
-    public void simulate() throws Exception {
+    public long simulate() throws Exception {
         // This has to be changed
+        int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
+        var ini = new Date().getTime();
         List<BigInteger> bitKEYS = this.generateBitKEYS();
         List<BigInteger> obliviousTransferKeys = this.generateObliviousTransferKeys(bitKEYS);
-        int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
         Item itemToBuy = this.items.get(idxItemToBuy);
         BigInteger obliviousTransferKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
+        var time = new Date().getTime() - ini;
         BigInteger itemValue = this.buyItem(itemToBuy, obliviousTransferKey, bitKEYS);
         if (!itemValue.equals(itemToBuy.value))
             throw new Exception("The item value is different from the original.");
+        return time;
     }
 
     // Simulem el protocol de Oblivious Transfer que equival a una signatura cega.

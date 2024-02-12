@@ -95,30 +95,40 @@ public class ManagerPOTImproved {
         System.out.println(".");
     }
 
-    public long simulateSerial(int simulations) throws Exception {
+    public SimulationResult simulateSerial(int simulations) throws Exception {
         ArrayList<Long> results = new ArrayList<>(simulations);
+        ArrayList<Long> timeOfOT = new ArrayList<>(simulations);
         for (int i = 0; i < simulations; i++) {
             var ini = new Date().getTime();
-            this.simulate();
+            var time = this.simulate();
             results.add(new Date().getTime() - ini);
+            timeOfOT.add(time);
             System.out.print(". ");
         }
         System.out.println(".");
+        return new SimulationResult(extractMedian(results), extractMedian(timeOfOT));
+    }
+
+    private static long extractMedian(ArrayList<Long> results) {
         results.sort(Comparator.naturalOrder());
-        if (simulations % 2 == 0) {
-            int i = simulations / 2;
+        var size = results.size();
+        if (size % 2 == 0) {
+            int i = size / 2;
             return (results.get(i - 1) + results.get(i)) / 2;
         }
-        int i = simulations / 2;
+        int i = size / 2;
         return results.get(i);
     }
 
-    public void simulate() throws Exception {
+    public long simulate() throws Exception {
         int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
+        var ini = new Date().getTime();
         BigInteger itemKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
+        var res = new Date().getTime() - ini;
         Item itemToBuy = this.items.get(idxItemToBuy);  // Just to test the values.
         BigInteger itemValue = this.buyItem(idxItemToBuy, itemKey, bitKEYS);
         if (!itemValue.equals(itemToBuy.value)) throw new Exception("The item value is different from the original.");
+        return res;
     }
 
     // Simulem el protocol de Oblivious Transfer que equival a una signatura cega.

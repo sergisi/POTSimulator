@@ -91,13 +91,8 @@ public class POTSimulatorImproved {
     private static void serialSimulation(SimulatorSettings settings, double M, ManagerPOTImproved manager) throws Exception {
         int simulations = settings.MAX_POT_SIMULATIONS;
         System.out.println("-> Simulating " + simulations + " executions POT serial");
-
         var timeSerial = manager.simulateSerial(simulations);
-        System.out.println("Avg execution: " + timeSerial + " ms.");
-        System.out.println("Avg/bit: " + (timeSerial / M) + " ms.");
-
-        System.out.println();
-        System.out.println();
+        System.out.println(timeSerial);
     }
 
     private static void printHeaders(SimulatorSettings settings, int M) {
