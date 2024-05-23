@@ -102,8 +102,8 @@ public class ManagerPOT {
         List<BigInteger> obliviousTransferKeys = this.generateObliviousTransferKeys(bitKEYS);
         Item itemToBuy = this.items.get(idxItemToBuy);
         BigInteger obliviousTransferKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
-        var time = new Date().getTime() - ini;
         BigInteger itemValue = this.buyItem(itemToBuy, obliviousTransferKey, bitKEYS);
+        var time = new Date().getTime() - ini;
         if (!itemValue.equals(itemToBuy.value))
             throw new Exception("The item value is different from the original.");
         return time;

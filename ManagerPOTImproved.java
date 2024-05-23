@@ -65,7 +65,6 @@ public class ManagerPOTImproved {
         for (int i = 0; i < items.size(); i++) {
             items.get(i).encryptWithKey(obliviousTransferKeys.get(i));
         }
-        generateOTEncryptedItemList();
     }
 
     private void generateOTEncryptedItemList() throws Exception {
@@ -123,10 +122,10 @@ public class ManagerPOTImproved {
     public long simulate() throws Exception {
         int idxItemToBuy = this.randomGenerator.generateRandom(16).intValue() % this.items.size();
         var ini = new Date().getTime();
-        BigInteger itemKey = this.simulateObliviousTransfer(obliviousTransferKeys, idxItemToBuy);
-        var res = new Date().getTime() - ini;
+        BigInteger itemKey = this.items.get(idxItemToBuy).key;
         Item itemToBuy = this.items.get(idxItemToBuy);  // Just to test the values.
         BigInteger itemValue = this.buyItem(idxItemToBuy, itemKey, bitKEYS);
+        var res = new Date().getTime() - ini;
         if (!itemValue.equals(itemToBuy.value)) throw new Exception("The item value is different from the original.");
         return res;
     }

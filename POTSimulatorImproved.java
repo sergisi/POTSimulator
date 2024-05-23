@@ -45,10 +45,7 @@ public class POTSimulatorImproved {
         System.out.println("--- PRICED OBLIVIOUS TRANSFER");
         System.out.println(SEPARADOR);
 
-        POTSimulation(settings, 16, 10);
-        POTSimulation(settings, 16, 50);
-        POTSimulation(settings, 16, 100);
-        POTSimulation(settings, 16, 1000);
+        POTSimulation(settings, 16, 500);
 
         System.out.println();
         System.out.println();
